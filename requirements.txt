@@ -1,0 +1,13 @@
+# --- Runtime dependencies ---
+# Conversion engine (the [all] extra pulls in PDF, DOCX, PPTX, XLSX, audio, etc. support)
+markitdown[all]>=0.1.2
+# Modern themed Tkinter widgets
+customtkinter>=5.2.2
+# Native drag-and-drop for Tkinter
+tkinterdnd2>=0.4.2
+# Only used when an LLM vision model is configured in Settings (optional, online)
+openai>=1.0
+
+# --- Development / packaging ---
+pytest>=8.0
+pyinstaller>=6.0
