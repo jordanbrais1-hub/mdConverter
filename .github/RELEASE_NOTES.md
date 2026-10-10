@@ -1,14 +1,21 @@
-## Download and run (Windows 10/11, 64-bit)
+## Install (Windows 10/11, 64-bit)
 
-1. Download **`mdConverter-…-windows-x64.zip`** from *Assets* below.
-2. Right-click the zip → **Extract All…** (the app does not run from inside the zip).
-3. Open the extracted `mdConverter` folder and double-click **`mdConverter.exe`**.
+1. Download **`mdConverter-Setup-….exe`** from *Assets* below.
+2. Double-click it and follow the steps (Next → Next → Finish).
+3. Open **mdConverter** from the Start menu or your desktop.
 
-No Python or installation needed. The first launch can take a few seconds.
+No administrator rights or Python needed. Uninstall any time from *Settings → Apps*.
+Installing a newer version over an old one upgrades it in place.
 
-> **"Windows protected your PC"?** The app is not code-signed, so Windows SmartScreen warns about it.
+> **"Windows protected your PC"?** The installer is not code-signed, so Windows SmartScreen warns about it.
 > Click **More info → Run anyway**.
 
-Keep `mdConverter.exe` next to its `_internal` folder. To make a desktop shortcut, right-click the exe → *Send to → Desktop (create shortcut)*.
+<details>
+<summary>Portable version (no installation)</summary>
+
+Download `mdConverter-…-portable-windows-x64.zip`, right-click it → **Extract All…**, then run
+`mdConverter.exe` from the extracted folder. Do not run it from inside the zip. It needs the
+`_internal` folder beside it.
+</details>
 
 Found a bug or have an idea? [Open an issue](https://github.com/jordanbrais1-hub/mdConverter/issues).

@@ -1,7 +1,7 @@
 name: Release
 
-# Publishes a GitHub Release with the Windows build attached whenever a
-# version tag is pushed, e.g.:  git tag v1.1.0 && git push origin v1.1.0
+# Publishes a GitHub Release with the Windows installer and portable zip
+# whenever a version tag is pushed, e.g.:  git tag v1.1.0 && git push origin v1.1.0
 on:
   push:
     tags: ["v*"]
@@ -22,19 +22,38 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+      - name: Check tag matches app version
+        shell: pwsh
+        run: |
+          $app = python -c "import mdconverter; print(mdconverter.__version__)"
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          if ($app -ne $tag) { throw "Tag v$tag does not match mdconverter.__version__ ($app)" }
+          "APP_VERSION=$app" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Run tests
         run: python -m pytest -q
       - name: Build executable
         run: pyinstaller --noconfirm --clean mdConverter.spec
-      - name: Package
+      - name: Install Inno Setup
         shell: pwsh
-        run: Compress-Archive -Path dist/mdConverter -DestinationPath "mdConverter-${{ github.ref_name }}-windows-x64.zip"
+        run: |
+          # Always use the current release; the script needs 6.6+ for its Windows 11 style.
+          Invoke-WebRequest "https://jrsoftware.org/download.php/is.exe" -OutFile is.exe
+          Start-Process is.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CURRENTUSER" -Wait
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$env:APP_VERSION" installer\mdConverter.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Package portable zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/mdConverter -DestinationPath "dist/mdConverter-${{ github.ref_name }}-portable-windows-x64.zip"
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "${{ github.ref_name }}"
-          "mdConverter-${{ github.ref_name }}-windows-x64.zip"
+          "dist/mdConverter-Setup-${{ env.APP_VERSION }}.exe"
+          "dist/mdConverter-${{ github.ref_name }}-portable-windows-x64.zip"
           --title "mdConverter ${{ github.ref_name }}"
           --notes-file .github/RELEASE_NOTES.md
           --generate-notes
