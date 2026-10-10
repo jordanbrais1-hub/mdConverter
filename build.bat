@@ -14,7 +14,7 @@ if not exist .venv (
 
 call .venv\Scripts\activate.bat || goto :error
 python -m pip install --upgrade pip || goto :error
-python -m pip install -r requirements.txt || goto :error
+python -m pip install --require-hashes -r requirements-dev.txt || goto :error
 
 if not exist assets\icon.ico python tools\make_assets.py
 
