@@ -171,6 +171,7 @@ Security is enforced at every stage. The full policy, and how to report a vulner
 | Secrets | gitleaks scans the full git history in CI; GitHub secret scanning and push protection are enabled |
 | CI/CD | Actions pinned to commit SHAs, least-privilege tokens, checksum-verified build tools, no cache in release builds |
 | Releases | Built from a clean environment on GitHub, with `SHA256SUMS.txt` attached |
+| Repository | [`tools/protect_main.sh`](tools/protect_main.sh) applies branch protection to `main`: required checks, reviews, linear history, no force pushes |
 
 Set up the commit hooks after cloning:
 
