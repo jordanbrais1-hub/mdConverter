@@ -1,0 +1,7 @@
+# Normalise line endings in the repository; keep shell scripts LF so they run in Bash.
+* text=auto
+*.sh text eol=lf
+*.bat text eol=crlf
+*.iss text eol=crlf
+*.png binary
+*.ico binary
