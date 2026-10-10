@@ -10,6 +10,16 @@ Conversion is handled by Microsoft's [MarkItDown](https://github.com/microsoft/m
 
 ![mdConverter preview pane](docs/screenshot-preview.png)
 
+## Download
+
+**[⬇ Download the latest version for Windows](https://github.com/jordanbrais1-hub/mdConverter/releases/latest)**. No Python or installation required.
+
+1. Under **Assets**, download `mdConverter-…-windows-x64.zip`.
+2. Right-click the zip → **Extract All…**
+3. Open the extracted folder and double-click **`mdConverter.exe`**.
+
+If Windows shows *"Windows protected your PC"*, click **More info → Run anyway**. The app isn't code-signed, so SmartScreen warns about it.
+
 ## Features
 
 - **Drag and drop** files or whole folders anywhere on the window, or use **Add Files…** / **Select Folder…**.
@@ -65,6 +75,15 @@ dist\mdConverter\mdConverter.exe
 Zip and share the whole `dist\mdConverter` folder; the `.exe` needs the `_internal` folder beside it. The spec builds in *one-folder* mode on purpose: it starts much faster than `--onefile`, which has to unpack ~200 MB of parsers to a temp folder on every launch.
 
 Each push to `main` also builds the executable in GitHub Actions and attaches it to the run as a downloadable artifact.
+
+### Publishing a release
+
+Pushing a version tag builds, tests and publishes a GitHub Release with the zipped app attached ([`release.yml`](.github/workflows/release.yml)):
+
+```powershell
+git tag v1.1.0
+git push origin v1.1.0
+```
 
 To build by hand:
 

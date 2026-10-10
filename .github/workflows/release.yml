@@ -1,0 +1,40 @@
+name: Release
+
+# Publishes a GitHub Release with the Windows build attached whenever a
+# version tag is pushed, e.g.:  git tag v1.1.0 && git push origin v1.1.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Run tests
+        run: python -m pytest -q
+      - name: Build executable
+        run: pyinstaller --noconfirm --clean mdConverter.spec
+      - name: Package
+        shell: pwsh
+        run: Compress-Archive -Path dist/mdConverter -DestinationPath "mdConverter-${{ github.ref_name }}-windows-x64.zip"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}"
+          "mdConverter-${{ github.ref_name }}-windows-x64.zip"
+          --title "mdConverter ${{ github.ref_name }}"
+          --notes-file .github/RELEASE_NOTES.md
+          --generate-notes
