@@ -1,0 +1,18 @@
+# Code owners are requested for review automatically on every pull request.
+# With branch protection's "Require review from Code Owners", their approval is mandatory.
+# Later rules take precedence over earlier ones.
+
+# Default owner for everything
+*                           @jordanbrais1-hub
+
+# Security-sensitive areas: changes here always need the maintainer's review
+/.github/                   @jordanbrais1-hub
+/SECURITY.md                @jordanbrais1-hub
+/requirements*.txt          @jordanbrais1-hub
+/requirements*.in           @jordanbrais1-hub
+/mdConverter.spec           @jordanbrais1-hub
+/installer/                 @jordanbrais1-hub
+/.pre-commit-config.yaml    @jordanbrais1-hub
+/.gitleaks.toml             @jordanbrais1-hub
+/mdconverter/secret_store.py  @jordanbrais1-hub
+/mdconverter/settings.py    @jordanbrais1-hub
