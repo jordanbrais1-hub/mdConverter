@@ -21,3 +21,20 @@ Thumbs.db
 
 # Local conversion output created while testing
 Converted_Markdown_*/
+
+# Secrets and key material (also blocked by pre-commit hooks)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.ppk
+id_rsa*
+id_ed25519*
+settings.json
+secrets.*
+credentials.*

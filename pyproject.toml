@@ -1,0 +1,7 @@
+# Tool configuration only; dependencies live in requirements*.in / requirements*.txt.
+
+[tool.bandit]
+exclude_dirs = [".venv", "build", "dist", "tests"]
+# B404/B603: subprocess is used only with fixed argument lists (no shell) to open
+# files/folders in the OS file manager; each call site is reviewed and annotated.
+skips = ["B404"]

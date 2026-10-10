@@ -1,0 +1,47 @@
+# Local commit guards. Install once per clone:
+#   pip install -r requirements-dev.txt
+#   pre-commit install
+# Run against everything:  pre-commit run --all-files
+#
+# Hook revisions are pinned to commit SHAs (refresh with `pre-commit autoupdate --freeze`).
+default_install_hook_types: [pre-commit]
+fail_fast: false
+
+repos:
+  # Secret scanning: API keys, tokens, high-entropy strings, private keys.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: 2ca41cc1372d1e939a6a879f18cdc19fc1cac1ce  # frozen: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb=2048"]
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-case-conflict
+
+  # Python SAST on every staged source file.
+  - repo: https://github.com/PyCQA/bandit
+    rev: 92ae8b82fb422a639f0ed8d99e96cea769594e08  # frozen: 1.9.4
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml", "-q"]
+        additional_dependencies: ["bandit[toml]"]
+
+  - repo: local
+    hooks:
+      - id: forbid-env-files
+        name: Block .env files (use .env.example for templates)
+        language: fail
+        entry: ".env files may contain secrets and must not be committed:"
+        files: '(^|/)\.env(\..+)?$'
+        exclude: '(^|/)\.env\.example$'
+      - id: forbid-key-material
+        name: Block private keys, certificates and keystores
+        language: fail
+        entry: "Key/certificate material must not be committed:"
+        files: '\.(pem|key|p12|pfx|jks|keystore|ppk|asc|gpg|kdbx)$|(^|/)id_(rsa|dsa|ecdsa|ed25519)$'

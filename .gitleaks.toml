@@ -1,0 +1,15 @@
+# gitleaks configuration: the built-in ruleset plus project-specific allowlists.
+# Used by the pre-commit hook and the Security workflow.
+title = "mdConverter gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated binaries and images cannot contain meaningful secrets"
+paths = [
+  '''(^|/)assets/.*\.(ico|png)$''',
+  '''(^|/)docs/.*\.png$''',
+  # Hash-pinned lock files are full of high-entropy sha256 digests.
+  '''(^|/)requirements(-dev)?\.txt$''',
+]
