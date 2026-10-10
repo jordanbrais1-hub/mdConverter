@@ -17,7 +17,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Union
 
-from .settings import AppSettings
+from .settings import AppSettings, validate_llm_endpoint
 from .utils import AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, REPORT_FILENAME, SourceItem
 
 log = logging.getLogger(__name__)
@@ -66,6 +66,9 @@ def build_markitdown(settings: AppSettings):
     kwargs: dict = {"enable_plugins": False}
 
     if settings.llm_enabled:
+        endpoint_error = validate_llm_endpoint(settings.llm_base_url)
+        if endpoint_error:
+            raise ConfigurationError(endpoint_error)
         api_key = settings.effective_api_key
         if not api_key:
             raise ConfigurationError(
@@ -123,7 +126,9 @@ def convert_file(md, item: SourceItem, output_path: Path, settings: AppSettings)
 
     start = time.perf_counter()
     try:
-        result = md.convert(item.path)
+        # convert_local (not convert) guarantees the input is treated as a local
+        # file and can never be interpreted as a URL to fetch.
+        result = md.convert_local(item.path)
         text = (getattr(result, "markdown", None) or result.text_content or "").strip()
     except UnsupportedFormatException:
         return ConversionResult(item, Status.SKIPPED, message=f"Unsupported file format ({suffix or 'no extension'}).")

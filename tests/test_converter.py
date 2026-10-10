@@ -53,7 +53,7 @@ class _RaisingConverter:
     def __init__(self, exc):
         self.exc = exc
 
-    def convert(self, _path):
+    def convert_local(self, _path):
         raise self.exc
 
 

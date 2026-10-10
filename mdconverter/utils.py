@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -141,6 +142,17 @@ def _with_counter(path: Path, n: int) -> Path:
     return path.with_name(f"{path.stem} ({n}){path.suffix}")
 
 
+class PathEscapeError(ValueError):
+    """Raised when a computed output path would land outside the output folder."""
+
+
+def ensure_within(path: Path, root: Path) -> None:
+    """Defence in depth against path traversal: ``path`` must resolve inside ``root``."""
+    resolved, base = Path(path).resolve(), Path(root).resolve()
+    if resolved != base and base not in resolved.parents:
+        raise PathEscapeError(f"Output path {path} escapes the output folder {root}.")
+
+
 def plan_output_paths(
     items: Iterable[SourceItem], output_dir: Path, overwrite: bool
 ) -> dict[SourceItem, Path]:
@@ -161,6 +173,7 @@ def plan_output_paths(
         while str(target).lower() in taken or (not overwrite and target.exists()):
             n += 1
             target = _with_counter(candidate, n)
+        ensure_within(target, output_dir)
         taken.add(str(target).lower())
         planned[item] = target
     return planned
@@ -169,26 +182,66 @@ def plan_output_paths(
 # --------------------------------------------------------------------------- #
 # OS integration
 # --------------------------------------------------------------------------- #
+# The app only ever opens folders and the Markdown files it wrote. Refusing
+# anything else means a crafted path can never make the OS *execute* a file
+# (os.startfile on an .exe/.bat/.lnk would run it).
+OPENABLE_SUFFIXES = {".md"}
+
+
+class UnsafePathError(ValueError):
+    """Raised when asked to open something that is not a folder or Markdown file."""
+
+
+def _validated_target(path: Path) -> Path:
+    path = Path(path).resolve()
+    if path.is_dir():
+        return path
+    if path.is_file() and path.suffix.lower() in OPENABLE_SUFFIXES:
+        return path
+    raise UnsafePathError(f"Refusing to open {path}: only folders and Markdown files can be opened.")
+
+
+def _system_tool(*candidates: str) -> str:
+    """Return an absolute path to a system tool (preferring fixed system locations).
+
+    The process is always started by absolute path, never by a bare name.
+    """
+    for candidate in candidates:
+        if os.path.isabs(candidate) and os.path.isfile(candidate):
+            return candidate
+        found = shutil.which(candidate)
+        if found:
+            return os.path.abspath(found)
+    raise FileNotFoundError(f"None of {candidates} is available on this system.")
+
+
+def _windows_explorer() -> str:
+    return os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "explorer.exe")
+
+
+# Bandit B603/B606 are suppressed below after review: every call uses a fixed,
+# absolute executable, an argument list (never a shell), and a target that has
+# passed _validated_target (an existing folder or .md file).
 def open_path(path: Path) -> None:
-    """Open a file or folder with the operating system's default handler."""
-    path = Path(path)
+    """Open a folder or Markdown file with the operating system's default handler."""
+    target = _validated_target(path)
     if sys.platform.startswith("win"):
-        os.startfile(path)  # type: ignore[attr-defined]  # Windows only
+        os.startfile(target)  # type: ignore[attr-defined]  # nosec B606
     elif sys.platform == "darwin":
-        subprocess.Popen(["open", str(path)])
+        subprocess.Popen([_system_tool("/usr/bin/open"), str(target)])  # nosec B603
     else:
-        subprocess.Popen(["xdg-open", str(path)])
+        subprocess.Popen([_system_tool("/usr/bin/xdg-open", "xdg-open"), str(target)])  # nosec B603
 
 
 def reveal_in_file_manager(path: Path) -> None:
     """Open the containing folder and, where supported, select the file."""
-    path = Path(path)
-    if sys.platform.startswith("win") and path.is_file():
-        subprocess.Popen(["explorer", "/select,", str(path)])
-    elif sys.platform == "darwin" and path.is_file():
-        subprocess.Popen(["open", "-R", str(path)])
+    target = _validated_target(path)
+    if sys.platform.startswith("win") and target.is_file():
+        subprocess.Popen([_windows_explorer(), "/select,", str(target)])  # nosec B603
+    elif sys.platform == "darwin" and target.is_file():
+        subprocess.Popen([_system_tool("/usr/bin/open"), "-R", str(target)])  # nosec B603
     else:
-        open_path(path if path.is_dir() else path.parent)
+        open_path(target if target.is_dir() else target.parent)
 
 
 def app_data_dir() -> Path:

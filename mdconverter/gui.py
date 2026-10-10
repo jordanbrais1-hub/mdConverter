@@ -39,10 +39,12 @@ from .converter import (
     format_report,
     summarize,
 )
-from .settings import AppSettings
+from .settings import AppSettings, validate_llm_endpoint
 from .utils import (
     SUPPORTED_EXTENSIONS,
+    PathEscapeError,
     SourceItem,
+    UnsafePathError,
     discover_files,
     human_size,
     open_path,
@@ -568,7 +570,12 @@ class App(ctk.CTk, _DnDBase):
             return
 
         order = list(self.tree.get_children())
-        plan = plan_output_paths((self.items[i] for i in order), output_dir, self.settings.overwrite_existing)
+        try:
+            plan = plan_output_paths((self.items[i] for i in order), output_dir, self.settings.overwrite_existing)
+        except PathEscapeError as exc:
+            log.error("Blocked unsafe output path: %s", exc)
+            messagebox.showerror(__app_name__, f"A file would be written outside the output folder:\n\n{exc}")
+            return
         jobs = [(self.items[i], plan[self.items[i]]) for i in order]
         self._job_ids = order
 
@@ -744,7 +751,10 @@ class App(ctk.CTk, _DnDBase):
     def _show_in_folder(self) -> None:
         path = self._current_output()
         if path and path.exists():
-            reveal_in_file_manager(path)
+            try:
+                reveal_in_file_manager(path)
+            except (OSError, UnsafePathError) as exc:
+                messagebox.showerror(__app_name__, f"Could not show the file:\n\n{exc}")
 
     def _copy_markdown(self) -> None:
         path = self._current_output()
@@ -778,7 +788,7 @@ class App(ctk.CTk, _DnDBase):
             return
         try:
             open_path(path)
-        except OSError as exc:
+        except (OSError, UnsafePathError) as exc:
             messagebox.showerror(__app_name__, f"Could not open:\n{path}\n\n{exc}")
 
     @staticmethod
@@ -855,7 +865,7 @@ class SettingsDialog(ctk.CTkToplevel):
         self.model = entry("Model", settings.llm_model, "e.g. gpt-4o-mini")
         self.prompt = entry("Custom prompt", settings.llm_prompt, "Optional")
         ctk.CTkLabel(
-            self, text="The API key is stored in your user profile on this computer.",
+            self, text="The API key is stored encrypted in Windows Credential Manager.",
             text_color=("gray40", "gray60"), font=ctk.CTkFont(size=11),
         ).grid(row=row, column=1, sticky="w", pady=(0, 4))
         row += 1
@@ -892,15 +902,33 @@ class SettingsDialog(ctk.CTkToplevel):
             pass
 
     def _save(self) -> None:
-        s = self.settings
-        s.llm_enabled = self.llm_var.get()
-        s.llm_base_url = self.base_url.get().strip()
-        s.llm_api_key = self.api_key.get().strip()
-        s.llm_model = self.model.get().strip()
-        s.llm_prompt = self.prompt.get().strip()
-        s.allow_online_audio = self.audio_var.get()
-        if s.llm_enabled and not s.llm_model:
+        # Validate everything first so an invalid form never half-applies.
+        enabled = self.llm_var.get()
+        base_url = self.base_url.get().strip()
+        api_key = self.api_key.get().strip()
+        model = self.model.get().strip()
+        endpoint_error = validate_llm_endpoint(base_url)
+        if endpoint_error:
+            messagebox.showwarning("Settings", endpoint_error, parent=self)
+            return
+        if enabled and not model:
             messagebox.showwarning("Settings", "Please enter a model name, or turn the AI model off.", parent=self)
             return
+        if len(api_key) > 512 or any(ch.isspace() for ch in api_key):
+            messagebox.showwarning("Settings", "The API key looks invalid (it contains spaces or is too long).", parent=self)
+            return
+
+        s = self.settings
+        s.llm_enabled = enabled
+        s.llm_base_url = base_url
+        s.llm_model = model
+        s.llm_prompt = self.prompt.get().strip()
+        s.allow_online_audio = self.audio_var.get()
+        if api_key != s.llm_api_key and not s.set_api_key(api_key):
+            messagebox.showwarning(
+                "Settings",
+                "No secure credential store is available, so the API key will be kept only until you close the app.",
+                parent=self,
+            )
         self.on_save()
         self.destroy()
