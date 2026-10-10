@@ -36,9 +36,11 @@ jobs:
       - name: Install Inno Setup
         shell: pwsh
         run: |
-          # Always use the current release; the script needs 6.6+ for its Windows 11 style.
-          Invoke-WebRequest "https://jrsoftware.org/download.php/is.exe" -OutFile is.exe
-          Start-Process is.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CURRENTUSER" -Wait
+          # Pinned for reproducible builds; the script needs 6.6+ for its Windows 11 style.
+          $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+          Invoke-WebRequest $url -OutFile "$env:RUNNER_TEMP\innosetup.exe"
+          Start-Process "$env:RUNNER_TEMP\innosetup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CURRENTUSER" -Wait
+          if (-not (Test-Path "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe")) { throw "Inno Setup install failed" }
       - name: Build installer
         shell: pwsh
         run: |
