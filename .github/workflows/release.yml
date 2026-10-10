@@ -6,56 +6,81 @@ on:
   push:
     tags: ["v*"]
 
+# Default to read-only; only the job that publishes gets write access.
 permissions:
-  contents: write
+  contents: read
+
+env:
+  INNO_SETUP_URL: https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe
+  # Verified against two independent sources (GitHub release download and the winget manifest).
+  INNO_SETUP_SHA256: 9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732
 
 jobs:
   release:
     runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write          # create the release and upload assets
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-          cache: pip
-      - name: Install dependencies
+      # No dependency cache in the release job: a poisoned cache must not reach shipped binaries.
+      - name: Install locked dependencies (hash-verified)
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install --require-hashes -r requirements-dev.txt
       - name: Check tag matches app version
         shell: pwsh
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
           $app = python -c "import mdconverter; print(mdconverter.__version__)"
-          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $tag = $env:REF_NAME.TrimStart("v")
+          if ($app -notmatch '^\d+\.\d+\.\d+$') { throw "Unexpected app version format: $app" }
           if ($app -ne $tag) { throw "Tag v$tag does not match mdconverter.__version__ ($app)" }
           "APP_VERSION=$app" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Run tests
         run: python -m pytest -q
+      - name: Audit dependencies
+        run: pip-audit -r requirements.txt --require-hashes --disable-pip --progress-spinner off
       - name: Build executable
         run: pyinstaller --noconfirm --clean mdConverter.spec
-      - name: Install Inno Setup
+      - name: Install Inno Setup (checksum-verified)
         shell: pwsh
         run: |
-          # Pinned for reproducible builds; the script needs 6.6+ for its Windows 11 style.
-          $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
-          Invoke-WebRequest $url -OutFile "$env:RUNNER_TEMP\innosetup.exe"
-          Start-Process "$env:RUNNER_TEMP\innosetup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CURRENTUSER" -Wait
+          $exe = "$env:RUNNER_TEMP\innosetup.exe"
+          Invoke-WebRequest $env:INNO_SETUP_URL -OutFile $exe
+          $actual = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $env:INNO_SETUP_SHA256) { throw "Inno Setup checksum mismatch: $actual" }
+          Start-Process $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CURRENTUSER" -Wait
           if (-not (Test-Path "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe")) { throw "Inno Setup install failed" }
       - name: Build installer
         shell: pwsh
         run: |
           & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DAppVersion=$env:APP_VERSION" installer\mdConverter.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-      - name: Package portable zip
+      - name: Package portable zip and checksums
         shell: pwsh
-        run: Compress-Archive -Path dist/mdConverter -DestinationPath "dist/mdConverter-${{ github.ref_name }}-portable-windows-x64.zip"
+        run: |
+          Compress-Archive -Path dist/mdConverter -DestinationPath "dist/mdConverter-v$env:APP_VERSION-portable-windows-x64.zip"
+          Get-ChildItem dist/*.exe, dist/*.zip | ForEach-Object {
+            "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Out-File -Encoding ascii dist/SHA256SUMS.txt
+          Get-Content dist/SHA256SUMS.txt
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "${{ github.ref_name }}"
-          "dist/mdConverter-Setup-${{ env.APP_VERSION }}.exe"
-          "dist/mdConverter-${{ github.ref_name }}-portable-windows-x64.zip"
-          --title "mdConverter ${{ github.ref_name }}"
-          --notes-file .github/RELEASE_NOTES.md
-          --generate-notes
+          REF_NAME: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          gh release create $env:REF_NAME `
+            "dist/mdConverter-Setup-$env:APP_VERSION.exe" `
+            "dist/mdConverter-v$env:APP_VERSION-portable-windows-x64.zip" `
+            "dist/SHA256SUMS.txt" `
+            --title "mdConverter $env:REF_NAME" `
+            --notes-file .github/RELEASE_NOTES.md `
+            --generate-notes

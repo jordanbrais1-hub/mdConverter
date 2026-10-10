@@ -1,0 +1,22 @@
+# Automated dependency updates. Security updates are opened as soon as an
+# advisory is published; routine version bumps are batched weekly.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
+    labels: ["dependencies", "security"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: ["dependencies", "ci"]
