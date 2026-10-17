@@ -7,9 +7,9 @@ markitdown[all]>=0.1.8
 # Modern themed Tkinter widgets
 customtkinter>=5.2.2
 # Native drag-and-drop for Tkinter
-tkinterdnd2>=0.4.2
+tkinterdnd2>=0.6.4
 # Only used when an LLM vision model is configured in Settings (optional, online)
-openai>=1.0
+openai>=3.31.0
 # Stores the API key in the OS credential vault instead of a plain-text file
 keyring>=25.0
 

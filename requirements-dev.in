@@ -5,7 +5,7 @@
 
 pytest>=8.0
 pyinstaller>=6.0
-pre-commit>=4.0
+pre-commit>=4.7.0
 pip-audit>=2.7
 bandit[toml,sarif]>=1.8
-uv>=0.5
+uv>=0.13.1
