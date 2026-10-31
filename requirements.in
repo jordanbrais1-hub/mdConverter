@@ -3,16 +3,16 @@
 #   uv pip compile requirements.in --universal --python-version 3.11 --generate-hashes -o requirements.txt
 
 # Conversion engine (the [all] extra adds PDF, DOCX, PPTX, XLSX, audio, etc.)
-markitdown[all]>=0.1.8
+markitdown[all]>=0.1.9
 # Modern themed Tkinter widgets
 customtkinter>=5.2.2
 # Native drag-and-drop for Tkinter
-tkinterdnd2>=0.4.2
+tkinterdnd2>=0.7.0
 # Only used when an LLM vision model is configured in Settings (optional, online)
-openai>=1.0
+openai>=3.40.0
 # Stores the API key in the OS credential vault instead of a plain-text file
 keyring>=25.0
 
 # Transitive (via magika). Floor so the lock includes wheels for every supported
 # Python, 3.11 to 3.14; older releases ship no cp314 wheels.
-onnxruntime>=1.23
+onnxruntime>=1.31.1
